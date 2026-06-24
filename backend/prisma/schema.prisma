@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoPeriodo {
+  ABIERTO
+  CERRADO
+}
+
+enum TipoCuenta {
+  ACTIVO
+  PASIVO
+  PATRIMONIO
+  INGRESO
+  GASTO
+  COSTO
+}
+
+enum NaturalezaCuenta {
+  DEUDORA
+  ACREEDORA
+}
+
+enum EstadoAsiento {
+  BORRADOR
+  APROBADO
+  ANULADO
+}
+
+enum TipoAsiento {
+  APERTURA
+  MANUAL
+  AUTOMATICO
+  AJUSTE
+  CIERRE
+}
+
+enum OrigenAsiento {
+  VENTA
+  COMPRA
+  GASTO
+  COBRO
+  PAGO
+  INVENTARIO
+  NINGUNO
+}
+
+model Empresa {
+  id        String   @id @default(cuid())
+  nombre    String
+  ruc       String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  periodos PeriodoContable[]
+  cuentas  CuentaContable[]
+  asientos AsientoContable[]
+}
+
+model PeriodoContable {
+  id          String        @id @default(cuid())
+  empresaId   String
+  anio        Int
+  mes         Int
+  fechaInicio DateTime
+  fechaFin    DateTime
+  estado      EstadoPeriodo @default(ABIERTO)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  empresa  Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  asientos AsientoContable[]
+
+  @@unique([empresaId, anio, mes])
+  @@index([empresaId, estado])
+  @@index([empresaId, fechaInicio, fechaFin])
+}
+
+model CuentaContable {
+  id                String           @id @default(cuid())
+  empresaId         String
+  codigo            String
+  nombre            String
+  tipo              TipoCuenta
+  naturaleza        NaturalezaCuenta
+  nivel             Int
+  permiteMovimiento Boolean          @default(true)
+  activo            Boolean          @default(true)
+  cuentaPadreId     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  empresa Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  padre   CuentaContable?  @relation("JerarquiaCuenta", fields: [cuentaPadreId], references: [id])
+  hijos   CuentaContable[] @relation("JerarquiaCuenta")
+  lineas  LineaAsiento[]
+
+  @@unique([empresaId, codigo])
+  @@index([empresaId, tipo])
+  @@index([empresaId, naturaleza])
+  @@index([empresaId, cuentaPadreId])
+  @@index([empresaId, permiteMovimiento])
+}
+
+model AsientoContable {
+  id                 String        @id @default(cuid())
+  empresaId          String
+  periodoId          String
+  fecha              DateTime
+  numero             Int
+  descripcion        String
+  estado             EstadoAsiento @default(BORRADOR)
+  tipo               TipoAsiento
+  origen             OrigenAsiento @default(NINGUNO)
+  asientoReversoDeId String?
+  anuladoPorId       String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  empresa          Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  periodo          PeriodoContable   @relation(fields: [periodoId], references: [id])
+  lineas           LineaAsiento[]
+  asientoReversoDe AsientoContable?  @relation("ReversionAsiento", fields: [asientoReversoDeId], references: [id])
+  asientosReversos AsientoContable[] @relation("ReversionAsiento")
+  anuladoPor       AsientoContable?  @relation("AnulacionAsiento", fields: [anuladoPorId], references: [id])
+  asientosAnulados AsientoContable[] @relation("AnulacionAsiento")
+
+  @@unique([empresaId, numero])
+  @@index([empresaId, fecha])
+  @@index([empresaId, periodoId])
+  @@index([empresaId, estado])
+  @@index([empresaId, tipo])
+  @@index([empresaId, origen])
+}
+
+model LineaAsiento {
+  id        String   @id @default(cuid())
+  asientoId String
+  cuentaId  String
+  detalle   String?
+  debe      Decimal  @default(0) @db.Decimal(14, 2)
+  haber     Decimal  @default(0) @db.Decimal(14, 2)
+  orden     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asiento AsientoContable @relation(fields: [asientoId], references: [id], onDelete: Cascade)
+  cuenta  CuentaContable  @relation(fields: [cuentaId], references: [id])
+
+  @@unique([asientoId, orden])
+  @@index([asientoId])
+  @@index([cuentaId])
+  @@index([cuentaId, asientoId])
+}
