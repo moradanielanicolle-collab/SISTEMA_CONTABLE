@@ -1,0 +1,5 @@
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[server]: Server is running at http://localhost:3000
+22:20:33 [tsx] change in ./src\modules\asientos\asientos.service.ts Rerunning...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+[server]: Server is running at http://localhost:3000

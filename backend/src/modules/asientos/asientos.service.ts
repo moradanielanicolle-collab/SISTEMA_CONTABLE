@@ -61,15 +61,7 @@ export class AsientosService {
       include: {
         lineas: {
           include: {
-            cuenta: {
-              select: {
-                id: true,
-                codigo: true,
-                nombre: true,
-                tipo: true,
-                naturaleza: true,
-              },
-            },
+            cuenta: true,
           },
           orderBy: {
             orden: 'asc',
