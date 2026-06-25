@@ -43,45 +43,6 @@ type AsientoSeed = {
   lineas: LineaSeed[];
 };
 
-const cuentasNecesarias: CuentaSeed[] = [
-  cuenta('1.01.01.01', 'Caja'),
-  cuenta('1.01.01.02', 'Caja chica'),
-  cuenta('1.01.01.03', 'Bancos'),
-  cuenta('1.01.02.01', 'Cuentas por cobrar a clientes'),
-  cuenta('1.01.02.02', 'Documentos por cobrar a clientes'),
-  cuenta('1.01.02.04', 'Inversiones Temporales'),
-  cuenta('1.01.03.01', 'Inventario de Mercancía'),
-  cuenta('1.01.03.03', 'Suministros de Oficina'),
-  cuenta('1.01.04.03', 'Seguros Pagados por Anticipado'),
-  cuenta('1.01.05.02', 'IVA Compras'),
-  cuenta('1.02.01.01', 'Terrenos'),
-  cuenta('1.02.01.02', 'Edificios'),
-  cuenta('1.02.01.06', 'Equipo de Computación'),
-  cuenta('1.02.01.10', 'Muebles de Oficina'),
-  cuenta('1.02.01.14', 'Vehículos'),
-  cuenta('2.01.03.01', 'Cuentas por Pagar'),
-  cuenta('2.01.03.02', 'Documentos por Pagar'),
-  cuenta('2.01.04.01', 'Préstamos Bancarios'),
-  cuenta('2.01.07.02', 'Retenciones por Pagar'),
-  cuenta('2.01.07.04', 'IVA Ventas'),
-  cuenta('2.01.07.06', 'IESS por Pagar'),
-  cuenta('2.01.08.02', 'Sueldos por Pagar'),
-  cuenta('2.01.08.03', 'Intereses por Pagar'),
-  cuenta('2.02.03.02', 'Hipotecas por Pagar'),
-  cuenta('3.01', 'Capital Social Suscrito'),
-  cuenta('3.03.01', 'Reservas'),
-  cuenta('3.05', 'Utilidades Acumuladas'),
-  cuenta('4.1.01.01', 'Ventas Bienes'),
-  cuenta('4.3.05.01', 'Comisiones ganadas'),
-  cuenta('5.1.01.01', 'Costos de Ventas'),
-  cuenta('5.2.01.01', 'Gastos de Sueldo y Salario'),
-  cuenta('5.2.01.09', 'Arriendo de locales y oficinas'),
-  cuenta('5.2.01.10', 'Gasto de publicidad / suministros de Oficina'),
-  cuenta('5.2.01.11', 'Servicios básicos / Gastos de Seguro'),
-  cuenta('5.2.01.12', 'Mantenimiento de vehículos'),
-  cuenta('5.2.01.14', 'Gastos financieros - Intereses'),
-];
-
 const asientos: AsientoSeed[] = [
   {
     numeroDocumento: '1',
@@ -340,6 +301,8 @@ const asientos: AsientoSeed[] = [
   },
 ];
 
+const cuentasNecesarias = construirCuentasNecesarias(asientos);
+
 async function main() {
   const empresa = await obtenerOCrearEmpresa();
   const periodo = await obtenerOCrearPeriodo(empresa.id);
@@ -365,7 +328,7 @@ async function main() {
           const cuentaId = cuentasPorCodigo.get(linea.codigo);
 
           if (!cuentaId) {
-            throw new Error(`Asiento ${asiento.numeroDocumento}, línea ${index + 1}: cuenta ${linea.codigo} no encontrada.`);
+            throw new Error(`línea ${index + 1}: cuenta ${linea.codigo} no encontrada.`);
           }
 
           return {
@@ -559,10 +522,26 @@ function imprimirAdvertencias() {
   console.log('- No existe asiento 19; se respetó la numeración real del documento.');
 }
 
+function construirCuentasNecesarias(items: AsientoSeed[]) {
+  const cuentasPorCodigo = new Map<string, CuentaSeed>();
+
+  for (const asiento of items) {
+    for (const linea of asiento.lineas) {
+      if (cuentasPorCodigo.has(linea.codigo)) {
+        continue;
+      }
+
+      cuentasPorCodigo.set(linea.codigo, cuenta(linea.codigo, nombreCanonico(linea.codigo, linea.detalle)));
+    }
+  }
+
+  return [...cuentasPorCodigo.values()].sort((a, b) => a.codigo.localeCompare(b.codigo));
+}
+
 function validarLineas(asiento: AsientoSeed) {
   asiento.lineas.forEach((linea, index) => {
     if (!cuentasNecesarias.some((cuentaItem) => cuentaItem.codigo === linea.codigo)) {
-      throw new Error(`Asiento ${asiento.numeroDocumento}, línea ${index + 1}: cuenta ${linea.codigo} no definida en el seed.`);
+      throw new Error(`línea ${index + 1}: cuenta ${linea.codigo} no definida en el seed.`);
     }
   });
 }
@@ -593,6 +572,49 @@ function cuenta(codigo: string, nombre: string): CuentaSeed {
     naturaleza: naturalezaPorTipo(tipo),
     nivel: codigo.split('.').length,
   };
+}
+
+function nombreCanonico(codigo: string, fallback: string) {
+  const nombres: Record<string, string> = {
+    '1.01.01.01': 'Caja',
+    '1.01.01.02': 'Caja chica',
+    '1.01.01.03': 'Bancos',
+    '1.01.02.01': 'Cuentas por cobrar a clientes',
+    '1.01.02.02': 'Documentos por cobrar a clientes',
+    '1.01.02.04': 'Inversiones Temporales',
+    '1.01.03.01': 'Inventario de Mercancía',
+    '1.01.03.03': 'Suministros de Oficina',
+    '1.01.04.03': 'Seguros Pagados por Anticipado',
+    '1.01.05.02': 'IVA Compras',
+    '1.02.01.01': 'Terrenos',
+    '1.02.01.02': 'Edificios',
+    '1.02.01.06': 'Equipo de Computación',
+    '1.02.01.10': 'Muebles de Oficina',
+    '1.02.01.14': 'Vehículos',
+    '2.01.03.01': 'Cuentas por Pagar',
+    '2.01.03.02': 'Documentos por Pagar',
+    '2.01.04.01': 'Préstamos Bancarios',
+    '2.01.07.02': 'Retenciones por Pagar',
+    '2.01.07.04': 'IVA Ventas',
+    '2.01.07.06': 'IESS por Pagar',
+    '2.01.08.02': 'Sueldos por Pagar',
+    '2.01.08.03': 'Intereses por Pagar',
+    '2.02.03.02': 'Hipotecas por Pagar',
+    '3.01': 'Capital Social Suscrito',
+    '3.03.01': 'Reservas',
+    '3.05': 'Utilidades Acumuladas',
+    '4.1.01.01': 'Ventas Bienes',
+    '4.3.05.01': 'Comisiones ganadas',
+    '5.1.01.01': 'Costos de Ventas',
+    '5.2.01.01': 'Gastos de Sueldo y Salario',
+    '5.2.01.09': 'Arriendo de locales y oficinas',
+    '5.2.01.10': 'Gasto de publicidad / suministros de Oficina',
+    '5.2.01.11': 'Servicios básicos / Gastos de Seguro',
+    '5.2.01.12': 'Mantenimiento de vehículos',
+    '5.2.01.14': 'Gastos financieros - Intereses',
+  };
+
+  return nombres[codigo] ?? fallback;
 }
 
 function tipoPorCodigo(codigo: string) {
